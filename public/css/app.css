@@ -50,6 +50,7 @@ html[data-theme="dark"] {
   --hero-2: #16110f;
   --skeleton-a: #121a17;
   --skeleton-b: #1a2621;
+  --bg-wash-rgb: 10, 12, 11;
   --sans: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --serif: Fraunces, "Iowan Old Style", Palatino, Georgia, serif;
   --radius: 14px;
@@ -74,6 +75,7 @@ html[data-theme="light"] {
   --hero-2: #ece6df;
   --skeleton-a: #e4ebe6;
   --skeleton-b: #d5dfd8;
+  --bg-wash-rgb: 243, 245, 241;
 }
 
 *,
@@ -95,6 +97,8 @@ html {
   font-size: 17px;
   line-height: 1.45;
   -webkit-text-size-adjust: 100%;
+  --bg-dim: 0.58;
+  --bg-wash: rgba(var(--bg-wash-rgb), var(--bg-dim));
 }
 
 body {
@@ -103,6 +107,21 @@ body {
     radial-gradient(900px 520px at 50% 18%, var(--hero-1) 0%, transparent 62%),
     radial-gradient(700px 420px at 80% 110%, var(--hero-2) 0%, transparent 55%),
     var(--ink);
+}
+
+html.has-bg body {
+  background-color: var(--ink);
+  background-image:
+    linear-gradient(var(--bg-wash), var(--bg-wash)),
+    var(--bg-picture);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+html.has-bg .results-head {
+  background: rgba(var(--bg-wash-rgb), 0.86);
 }
 
 html[data-theme="light"] .logo-hero,
@@ -760,6 +779,8 @@ input {
 
 .settings-form {
   padding: 1.15rem 1.2rem 1.25rem;
+  overflow-y: auto;
+  max-height: min(88dvh, 640px);
 }
 
 .settings-form h2 {
@@ -850,6 +871,77 @@ input {
 .engine-list small {
   color: var(--steel);
   font-size: 0.8rem;
+}
+
+.bg-fields {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.bg-fields input[type="url"],
+.bg-fields input[type="file"] {
+  width: 100%;
+  background: var(--ink);
+  color: var(--bone);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+}
+
+.bg-fields input[type="file"] {
+  padding: 0.4rem 0.55rem;
+}
+
+.bg-fields .bg-hint {
+  margin: 0;
+  color: var(--steel);
+  font-size: 0.8rem;
+}
+
+.bg-dim-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.bg-dim-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--moss);
+}
+
+.bg-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bg-actions button {
+  background: transparent;
+  color: var(--steel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.45rem 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bg-actions button:hover {
+  color: var(--bone);
+  border-color: var(--ember);
+}
+
+.bg-preview {
+  display: none;
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.bg-preview.is-on {
+  display: block;
 }
 
 .settings-done {

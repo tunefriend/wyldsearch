@@ -19,15 +19,140 @@
   const settingsDlg = $("#settings");
   const openSettings = $("#open-settings");
 
+  const IDB_NAME = "wyldsearch-bg";
+  let bgObjectUrl = null;
+
+  function openBgDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore("pics");
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function saveBgBlob(blob) {
+    const db = await openBgDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("pics", "readwrite");
+      tx.objectStore("pics").put(blob, "picture");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function loadBgBlob() {
+    try {
+      const db = await openBgDb();
+      return await new Promise((resolve) => {
+        const tx = db.transaction("pics", "readonly");
+        const q = tx.objectStore("pics").get("picture");
+        q.onsuccess = () => resolve(q.result || null);
+        q.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function clearBgBlob() {
+    try {
+      const db = await openBgDb();
+      await new Promise((resolve) => {
+        const tx = db.transaction("pics", "readwrite");
+        tx.objectStore("pics").delete("picture");
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function shrinkImage(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const max = 1920;
+        let w = img.naturalWidth;
+        let h = img.naturalHeight;
+        if (w > max || h > max) {
+          const scale = max / Math.max(w, h);
+          w = Math.round(w * scale);
+          h = Math.round(h * scale);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("encode"))), "image/jpeg", 0.84);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("image"));
+      };
+      img.src = url;
+    });
+  }
+
+  function safeBgUrl(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    try {
+      const u = new URL(s);
+      if (u.protocol !== "https:" && u.protocol !== "http:") return "";
+      return u.href;
+    } catch {
+      return "";
+    }
+  }
+
+  async function applyBackground() {
+    if (bgObjectUrl) {
+      URL.revokeObjectURL(bgObjectUrl);
+      bgObjectUrl = null;
+    }
+    const dim = Math.min(85, Math.max(20, Number(settings.bgDim) || 58)) / 100;
+    document.documentElement.style.setProperty("--bg-dim", String(dim));
+    const preview = $("#bg-preview");
+    let src = "";
+    const blob = await loadBgBlob();
+    if (blob) {
+      bgObjectUrl = URL.createObjectURL(blob);
+      src = bgObjectUrl;
+    } else {
+      src = safeBgUrl(settings.bgUrl);
+    }
+    if (src) {
+      document.documentElement.classList.add("has-bg");
+      document.documentElement.style.setProperty("--bg-picture", `url("${src.replace(/"/g, "%22")}")`);
+      if (preview) {
+        preview.src = src;
+        preview.classList.add("is-on");
+      }
+    } else {
+      document.documentElement.classList.remove("has-bg");
+      document.documentElement.style.removeProperty("--bg-picture");
+      if (preview) {
+        preview.removeAttribute("src");
+        preview.classList.remove("is-on");
+      }
+    }
+  }
+
   function loadSettings() {
-    const fallback = { theme: "dark", engines: DEFAULT_ENGINES.slice() };
+    const fallback = { theme: "dark", engines: DEFAULT_ENGINES.slice(), bgUrl: "", bgDim: 58 };
     try {
       const raw = localStorage.getItem(STORE);
       if (!raw) return fallback;
       const s = JSON.parse(raw);
       const theme = ["dark", "light", "system"].includes(s.theme) ? s.theme : "dark";
-      let engines = Array.isArray(s.engines) ? s.engines.filter((e) => ALL_ENGINES.includes(e)) : ALL_ENGINES.slice();
-      return { theme, engines };
+      let engines = Array.isArray(s.engines) ? s.engines.filter((e) => ALL_ENGINES.includes(e)) : DEFAULT_ENGINES.slice();
+      const bgUrl = safeBgUrl(s.bgUrl);
+      const bgDim = Math.min(85, Math.max(20, Number(s.bgDim) || 58));
+      return { theme, engines, bgUrl, bgDim };
     } catch {
       return fallback;
     }
@@ -63,17 +188,26 @@
     $$("input[name='engine']").forEach((el) => {
       el.checked = s.engines.includes(el.value);
     });
+    const urlEl = $("#bg-url");
+    const dimEl = $("#bg-dim");
+    const dimLabel = $("#bg-dim-label");
+    if (urlEl) urlEl.value = s.bgUrl || "";
+    if (dimEl) dimEl.value = String(s.bgDim || 58);
+    if (dimLabel) dimLabel.textContent = `${s.bgDim || 58}%`;
   }
 
   function readSettingsForm() {
     const theme = $("input[name='theme']:checked")?.value || "dark";
     const engines = $$("input[name='engine']:checked").map((el) => el.value);
-    return { theme, engines };
+    const bgUrl = safeBgUrl($("#bg-url")?.value || "");
+    const bgDim = Math.min(85, Math.max(20, Number($("#bg-dim")?.value) || 58));
+    return { theme, engines, bgUrl, bgDim };
   }
 
   let settings = loadSettings();
   applyTheme(settings.theme);
   syncSettingsForm(settings);
+  applyBackground();
 
   matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
     if (settings.theme === "system") applyTheme("system");
@@ -121,8 +255,42 @@
     settings = readSettingsForm();
     saveSettings(settings);
     applyTheme(settings.theme);
+    applyBackground();
     const st = params();
     if (st.q) runSearch(st, { push: false });
+  });
+
+  $("#bg-file")?.addEventListener("change", async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    ev.target.value = "";
+    if (!file || !file.type.startsWith("image/")) return;
+    try {
+      const blob = await shrinkImage(file);
+      await saveBgBlob(blob);
+      settings.bgUrl = "";
+      const urlEl = $("#bg-url");
+      if (urlEl) urlEl.value = "";
+      saveSettings(settings);
+      await applyBackground();
+    } catch {
+      /* skip bad file */
+    }
+  });
+
+  $("#bg-dim")?.addEventListener("input", (ev) => {
+    const v = Math.min(85, Math.max(20, Number(ev.target.value) || 58));
+    const label = $("#bg-dim-label");
+    if (label) label.textContent = `${v}%`;
+    document.documentElement.style.setProperty("--bg-dim", String(v / 100));
+  });
+
+  $("#bg-clear")?.addEventListener("click", async () => {
+    settings.bgUrl = "";
+    const urlEl = $("#bg-url");
+    if (urlEl) urlEl.value = "";
+    await clearBgBlob();
+    saveSettings(settings);
+    await applyBackground();
   });
 
   $$("input[name='theme']").forEach((el) => {

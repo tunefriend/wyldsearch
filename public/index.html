@@ -47,6 +47,23 @@
         <label><input type="radio" name="theme" value="system"> System</label>
       </div>
 
+      <h3>Background picture</h3>
+      <div class="bg-fields">
+        <img id="bg-preview" class="bg-preview" alt="">
+        <label class="skip" for="bg-file">Upload a picture</label>
+        <input id="bg-file" type="file" accept="image/*">
+        <label class="skip" for="bg-url">Picture URL</label>
+        <input id="bg-url" type="url" name="bgUrl" placeholder="https://… optional image URL" autocomplete="off">
+        <label class="bg-dim-row" for="bg-dim">
+          <input id="bg-dim" type="range" min="20" max="85" value="58">
+          <span id="bg-dim-label">58%</span>
+        </label>
+        <p class="bg-hint">Stays on this device. A remote URL is fetched by your browser from that host.</p>
+        <div class="bg-actions">
+          <button type="button" id="bg-clear">Remove picture</button>
+        </div>
+      </div>
+
       <h3>Search sources</h3>
       <fieldset class="engine-list">
         <legend class="skip">Engines</legend>
