@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#0a0c0b">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="index,follow">
@@ -15,9 +15,75 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="search" type="application/opensearchdescription+xml" title="Wyldsearch" href="/opensearch.xml">
   <link rel="stylesheet" href="/css/app.css">
+  <script>
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem("wyldsearch") || "{}");
+        var t = s.theme || "dark";
+        if (t === "system") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <a class="skip" href="#q-home">Skip to search</a>
+  <button class="gear" type="button" id="open-settings" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 13a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V19a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H5a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V5a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H19a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+    </svg>
+  </button>
+
+  <dialog class="settings" id="settings" aria-labelledby="settings-title">
+    <form class="settings-form" method="dialog">
+      <h2 id="settings-title">Settings</h2>
+      <p class="settings-note">Saved on this device only. No account, no cookies.</p>
+
+      <h3>Appearance</h3>
+      <div class="theme-picks" role="radiogroup" aria-label="Appearance">
+        <label><input type="radio" name="theme" value="dark" checked> Dark</label>
+        <label><input type="radio" name="theme" value="light"> Light</label>
+        <label><input type="radio" name="theme" value="system"> System</label>
+      </div>
+
+      <h3>Search sources</h3>
+      <fieldset class="engine-list">
+        <legend class="skip">Engines</legend>
+        <label>
+          <input type="checkbox" name="engine" value="duckduckgo" checked>
+          <strong>DuckDuckGo</strong>
+          <small>Web and news</small>
+        </label>
+        <label>
+          <input type="checkbox" name="engine" value="wikipedia" checked>
+          <strong>Wikipedia</strong>
+          <small>Web results and the side card</small>
+        </label>
+        <label>
+          <input type="checkbox" name="engine" value="commons" checked>
+          <strong>Wikimedia Commons</strong>
+          <small>Images</small>
+        </label>
+        <label>
+          <input type="checkbox" name="engine" value="wikinews" checked>
+          <strong>Wikinews</strong>
+          <small>News</small>
+        </label>
+        <label>
+          <input type="checkbox" name="engine" value="peertube" checked>
+          <strong>PeerTube</strong>
+          <small>Videos via SepiaSearch</small>
+        </label>
+        <label>
+          <input type="checkbox" name="engine" value="searxng" checked>
+          <strong>SearxNG</strong>
+          <small id="searxng-hint">All tabs, if you connected an instance</small>
+        </label>
+      </fieldset>
+      <button class="settings-done" value="ok">Done</button>
+    </form>
+  </dialog>
 
   <section id="home" class="home">
     <div class="home-main">

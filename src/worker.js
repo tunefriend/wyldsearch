@@ -299,18 +299,27 @@ const LABELS = {
   wikinews: "Wikinews",
   sepiasearch: "PeerTube",
   fallback: "Results",
+  none: "No sources selected",
 };
 
-async function doSearch(env, query, tab, page) {
+const ALL_ENGINES = ["duckduckgo", "wikipedia", "commons", "wikinews", "peertube", "searxng"];
+
+function parseEngines(raw) {
+  if (raw == null) return new Set(ALL_ENGINES);
+  if (typeof raw === "string") raw = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!Array.isArray(raw)) return new Set(ALL_ENGINES);
+  return new Set(raw.map((s) => String(s).toLowerCase()).filter((s) => ALL_ENGINES.includes(s)));
+}
+
+async function doSearch(env, query, tab, page, engines) {
   query = String(query || "").trim().slice(0, 500);
   if (!["web", "images", "news", "videos"].includes(tab)) tab = "web";
   page = Math.max(1, Number(page) || 1);
+  const want = parseEngines(engines);
 
-  const sx = await searxngSearch(env, query, tab, page);
-  if (sx && sx.length) {
-    const infobox = tab === "web" ? await wikipediaInfobox(query) : null;
-    return pack(query, tab, page, sx, infobox, "searxng");
-  }
+  if (want.size === 0) return pack(query, tab, page, [], null, "none");
+
+  const sx = want.has("searxng") ? await searxngSearch(env, query, tab, page) : null;
 
   let results = [];
   let infobox = null;
@@ -318,23 +327,28 @@ async function doSearch(env, query, tab, page) {
 
   if (tab === "web") {
     const [web, box, wiki] = await Promise.all([
-      ddgWeb(query, page, false),
-      wikipediaInfobox(query),
-      wikipediaWeb(query, page),
+      want.has("duckduckgo") ? ddgWeb(query, page, false) : [],
+      want.has("wikipedia") ? wikipediaInfobox(query) : null,
+      want.has("wikipedia") ? wikipediaWeb(query, page) : [],
     ]);
     infobox = box;
-    results = mergeUnique(web, wiki);
-    source = web.length ? "duckduckgo" : "wikipedia";
+    results = mergeUnique(web, wiki, sx);
+    source = sx?.length ? "searxng" : web.length ? "duckduckgo" : wiki.length ? "wikipedia" : "fallback";
   } else if (tab === "images") {
-    results = await commonsImages(query, page);
-    source = "commons";
+    const commons = want.has("commons") ? await commonsImages(query, page) : [];
+    results = mergeUnique(commons, sx);
+    source = sx?.length ? "searxng" : "commons";
   } else if (tab === "news") {
-    const [news, wikiN] = await Promise.all([ddgWeb(query, page, true), wikinews(query, page)]);
-    results = mergeUnique(news, wikiN);
-    source = news.length ? "duckduckgo" : "wikinews";
+    const [news, wikiN] = await Promise.all([
+      want.has("duckduckgo") ? ddgWeb(query, page, true) : [],
+      want.has("wikinews") ? wikinews(query, page) : [],
+    ]);
+    results = mergeUnique(news, wikiN, sx);
+    source = sx?.length ? "searxng" : news.length ? "duckduckgo" : wikiN.length ? "wikinews" : "fallback";
   } else {
-    results = await sepiasearchVideos(query, page);
-    source = "sepiasearch";
+    const videos = want.has("peertube") ? await sepiasearchVideos(query, page) : [];
+    results = mergeUnique(videos, sx);
+    source = sx?.length ? "searxng" : "sepiasearch";
   }
 
   return pack(query, tab, page, results, infobox, source);
@@ -376,21 +390,24 @@ export default {
       let q = "";
       let t = "web";
       let p = 1;
+      let engines;
       if (request.method === "POST") {
         const body = await request.json().catch(() => ({}));
         q = body.q || "";
         t = body.t || "web";
         p = body.p || 1;
+        engines = body.engines;
       } else if (request.method === "GET") {
         q = url.searchParams.get("q") || "";
         t = url.searchParams.get("t") || "web";
         p = url.searchParams.get("p") || 1;
+        engines = url.searchParams.get("engines");
       } else {
         return json({ error: "Method not allowed" }, 405);
       }
       if (!String(q).trim()) return json({ error: "Missing query" }, 400);
       try {
-        return json(await doSearch(env, q, t, p));
+        return json(await doSearch(env, q, t, p, engines));
       } catch (err) {
         return json({ error: "Search failed", detail: String(err && err.message) }, 502);
       }

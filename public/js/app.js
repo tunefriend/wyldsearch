@@ -11,6 +11,99 @@
   const tabField = $("#tab-field");
 
   const TABS = ["web", "images", "news", "videos"];
+  const ALL_ENGINES = ["duckduckgo", "wikipedia", "commons", "wikinews", "peertube", "searxng"];
+  const STORE = "wyldsearch";
+
+  const settingsDlg = $("#settings");
+  const openSettings = $("#open-settings");
+
+  function loadSettings() {
+    const fallback = { theme: "dark", engines: ALL_ENGINES.slice() };
+    try {
+      const raw = localStorage.getItem(STORE);
+      if (!raw) return fallback;
+      const s = JSON.parse(raw);
+      const theme = ["dark", "light", "system"].includes(s.theme) ? s.theme : "dark";
+      let engines = Array.isArray(s.engines) ? s.engines.filter((e) => ALL_ENGINES.includes(e)) : ALL_ENGINES.slice();
+      return { theme, engines };
+    } catch {
+      return fallback;
+    }
+  }
+
+  function saveSettings(s) {
+    try {
+      localStorage.setItem(STORE, JSON.stringify(s));
+    } catch {
+      /* private mode */
+    }
+  }
+
+  function resolvedTheme(theme) {
+    if (theme === "system") {
+      return matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    }
+    return theme === "light" ? "light" : "dark";
+  }
+
+  function applyTheme(theme) {
+    const t = resolvedTheme(theme);
+    document.documentElement.setAttribute("data-theme", t);
+    document.documentElement.style.colorScheme = t;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", t === "light" ? "#f3f5f1" : "#0a0c0b");
+  }
+
+  function syncSettingsForm(s) {
+    $$("input[name='theme']").forEach((el) => {
+      el.checked = el.value === s.theme;
+    });
+    $$("input[name='engine']").forEach((el) => {
+      el.checked = s.engines.includes(el.value);
+    });
+  }
+
+  function readSettingsForm() {
+    const theme = $("input[name='theme']:checked")?.value || "dark";
+    const engines = $$("input[name='engine']:checked").map((el) => el.value);
+    return { theme, engines };
+  }
+
+  let settings = loadSettings();
+  applyTheme(settings.theme);
+  syncSettingsForm(settings);
+
+  matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+    if (settings.theme === "system") applyTheme("system");
+  });
+
+  openSettings?.addEventListener("click", async () => {
+    syncSettingsForm(settings);
+    try {
+      const h = await fetch("/api/health", { credentials: "omit", cache: "no-store" }).then((r) => r.json());
+      const hint = $("#searxng-hint");
+      if (hint) hint.textContent = h.searxng
+        ? "All tabs, using your connected instance"
+        : "All tabs — connect a SearxNG instance on the server to use this";
+    } catch {
+      /* ignore */
+    }
+    settingsDlg?.showModal();
+  });
+
+  settingsDlg?.addEventListener("close", () => {
+    settings = readSettingsForm();
+    saveSettings(settings);
+    applyTheme(settings.theme);
+    const st = params();
+    if (st.q) runSearch(st, { push: false });
+  });
+
+  $$("input[name='theme']").forEach((el) => {
+    el.addEventListener("change", () => {
+      applyTheme(el.value);
+    });
+  });
 
   function esc(s) {
     return String(s ?? "").replace(/[&<>"']/g, (c) =>
@@ -164,29 +257,34 @@
       .filter((r) => r.url);
   }
 
-  async function directSearch(q, t, p) {
+  async function directSearch(q, t, p, engines) {
+    const on = (id) => !engines || engines.includes(id);
     if (t === "images") {
-      const results = await commonsImages(q, p);
+      const results = on("commons") ? await commonsImages(q, p) : [];
       return { query: q, results, infobox: null, hasMore: results.length >= 8, sourceLabel: "Wikimedia Commons", page: p };
     }
     if (t === "news") {
-      const results = await wikiSearch("en.wikinews.org", q, p);
+      const results = on("wikinews") ? await wikiSearch("en.wikinews.org", q, p) : [];
       return { query: q, results, infobox: null, hasMore: results.length >= 8, sourceLabel: "Wikinews", page: p };
     }
     if (t === "videos") {
-      const results = await sepiasearch(q, p);
+      const results = on("peertube") ? await sepiasearch(q, p) : [];
       return { query: q, results, infobox: null, hasMore: results.length >= 8, sourceLabel: "PeerTube", page: p };
     }
-    const [results, infobox] = await Promise.all([wikiSearch("en.wikipedia.org", q, p), wikiBox(q)]);
+    const tasks = [];
+    if (on("wikipedia")) tasks.push(wikiSearch("en.wikipedia.org", q, p), wikiBox(q));
+    else tasks.push(Promise.resolve([]), Promise.resolve(null));
+    const [results, infobox] = await Promise.all(tasks);
     return { query: q, results, infobox, hasMore: results.length >= 8, sourceLabel: "Wikipedia", page: p };
   }
 
   async function apiSearch(q, t, p) {
+    const engines = settings.engines;
     try {
       const res = await fetch("/api/search", {
         method: "POST",
         headers: { "content-type": "application/json", accept: "application/json" },
-        body: JSON.stringify({ q, t, p }),
+        body: JSON.stringify({ q, t, p, engines }),
         credentials: "omit",
         cache: "no-store",
         referrerPolicy: "no-referrer",
@@ -195,7 +293,7 @@
     } catch {
       /* static host — fall through */
     }
-    return directSearch(q, t, p);
+    return directSearch(q, t, p, engines);
   }
 
   function skeleton(tab) {
@@ -206,6 +304,13 @@
     }
     cardEl.hidden = true;
     cardEl.innerHTML = "";
+  }
+
+  function emptyMsg(data, kind) {
+    if (data.source === "none" || !(settings.engines || []).length) {
+      return `<p class="empty">No search sources are turned on. Open Settings and check at least one.</p>`;
+    }
+    return `<p class="empty">No ${kind} for “${esc(data.query)}”.</p>`;
   }
 
   function renderCard(info) {
@@ -234,7 +339,7 @@
   function renderWeb(data) {
     const items = data.results || [];
     if (!items.length) {
-      listEl.innerHTML = `<p class="empty">No web results for “${esc(data.query)}”. Try a different phrasing.</p>`;
+      listEl.innerHTML = emptyMsg(data, "web results");
       return;
     }
     const rows = items.map((r) => `
@@ -249,7 +354,7 @@
   function renderNews(data) {
     const items = data.results || [];
     if (!items.length) {
-      listEl.innerHTML = `<p class="empty">No news results for “${esc(data.query)}”.</p>`;
+      listEl.innerHTML = emptyMsg(data, "news results");
       return;
     }
     const rows = items.map((r) => `
@@ -264,7 +369,7 @@
   function renderImages(data) {
     const items = data.results || [];
     if (!items.length) {
-      listEl.innerHTML = `<p class="empty">No images for “${esc(data.query)}”.</p>`;
+      listEl.innerHTML = emptyMsg(data, "images");
       return;
     }
     const cells = items.map((r) => `
@@ -278,7 +383,7 @@
   function renderVideos(data) {
     const items = data.results || [];
     if (!items.length) {
-      listEl.innerHTML = `<p class="empty">No videos for “${esc(data.query)}”.</p>`;
+      listEl.innerHTML = emptyMsg(data, "videos");
       return;
     }
     const cells = items.map((r) => `

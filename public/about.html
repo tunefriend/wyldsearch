@@ -3,13 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="dark light">
   <meta name="theme-color" content="#0a0c0b">
   <meta name="referrer" content="no-referrer">
   <meta name="description" content="About Wyldsearch — a private search homepage. No tracking, no profiles, no ads.">
   <title>About · Wyldsearch</title>
   <link rel="icon" href="/assets/favicon.png" type="image/png">
   <link rel="stylesheet" href="/css/app.css">
+  <script>
+    (function () {
+      try {
+        var s = JSON.parse(localStorage.getItem("wyldsearch") || "{}");
+        var t = s.theme || "dark";
+        if (t === "system") t = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", t === "light" ? "light" : "dark");
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <main class="about-wrap">
@@ -29,7 +39,8 @@
     <h2>How search works</h2>
     <p>The page you are looking at is the front end. Queries go to a same-origin API that does not set cookies and does not store the query. It fans out to privacy-respecting sources and returns a combined page.</p>
     <p>Web results currently come from DuckDuckGo’s HTML version (via the proxy) or, when you attach one, your own SearxNG instance. The side card is a Wikipedia summary. Images come from Wikimedia Commons. News from Wikinews and web results. Videos from SepiaSearch (PeerTube).</p>
-    <p>When you run SearxNG on a VPS, set <code>SEARXNG_URL</code> on the server. Wyldsearch will prefer that instance for every tab.</p>
+    <p>When you run SearxNG on a VPS, set <code>SEARXNG_URL</code> on the server. You can turn that instance on or off in Settings along with DuckDuckGo, Wikipedia, Commons, Wikinews, and PeerTube.</p>
+    <p>Appearance (dark / light / system) and which sources to query are stored in this browser only, never as cookies and never on the server.</p>
 
     <h2>What still leaks</h2>
     <p>Opening a result sends your browser to that site. Result links use <code>rel="noreferrer"</code> so the destination does not see wyldsearch.org as the referrer. The destination still sees your IP, the same as any browser.</p>

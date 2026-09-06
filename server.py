@@ -327,44 +327,57 @@ def merge_unique(*lists: list[dict]) -> list[dict]:
     return out
 
 
-def do_search(query: str, tab: str, page: int) -> dict:
+ALL_ENGINES = ("duckduckgo", "wikipedia", "commons", "wikinews", "peertube", "searxng")
+
+
+def parse_engines(raw) -> set[str]:
+    if raw is None:
+        return set(ALL_ENGINES)
+    if isinstance(raw, str):
+        raw = [x.strip() for x in raw.split(",") if x.strip()]
+    if not isinstance(raw, (list, tuple, set)):
+        return set(ALL_ENGINES)
+    return {str(x).lower() for x in raw if str(x).lower() in ALL_ENGINES}
+
+
+def do_search(query: str, tab: str, page: int, engines=None) -> dict:
     query = query.strip()[:500]
     tab = tab if tab in {"web", "images", "news", "videos"} else "web"
     page = max(1, int(page or 1))
+    want = parse_engines(engines)
     infobox = None
     source = "fallback"
 
-    sx = searxng_search(query, tab, page)
-    if sx:
-        source = "searxng"
-        results = sx
-        if tab == "web":
-            infobox = wikipedia_infobox(query)
-        return pack(query, tab, page, results, infobox, source)
+    if not want:
+        return pack(query, tab, page, [], None, "none")
 
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    sx = searxng_search(query, tab, page) if "searxng" in want else None
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
         if tab == "web":
-            f_web = pool.submit(ddg_web, query, page, False)
-            f_box = pool.submit(wikipedia_infobox, query)
-            f_wiki = pool.submit(wikipedia_web, query, page)
-            web = f_web.result()
-            infobox = f_box.result()
-            wiki = f_wiki.result()
-            results = merge_unique(web, wiki)
-            source = "duckduckgo" if web else "wikipedia"
+            f_web = pool.submit(ddg_web, query, page, False) if "duckduckgo" in want else None
+            f_box = pool.submit(wikipedia_infobox, query) if "wikipedia" in want else None
+            f_wiki = pool.submit(wikipedia_web, query, page) if "wikipedia" in want else None
+            web = f_web.result() if f_web else []
+            infobox = f_box.result() if f_box else None
+            wiki = f_wiki.result() if f_wiki else []
+            results = merge_unique(web, wiki, sx or [])
+            source = "searxng" if sx else "duckduckgo" if web else "wikipedia" if wiki else "fallback"
         elif tab == "images":
-            results = pool.submit(commons_images, query, page).result()
-            source = "commons"
+            commons = pool.submit(commons_images, query, page).result() if "commons" in want else []
+            results = merge_unique(commons, sx or [])
+            source = "searxng" if sx else "commons"
         elif tab == "news":
-            f_n = pool.submit(ddg_web, query, page, True)
-            f_w = pool.submit(wikinews, query, page)
-            news = f_n.result()
-            wiki_n = f_w.result()
-            results = merge_unique(news, wiki_n)
-            source = "duckduckgo" if news else "wikinews"
+            f_n = pool.submit(ddg_web, query, page, True) if "duckduckgo" in want else None
+            f_w = pool.submit(wikinews, query, page) if "wikinews" in want else None
+            news = f_n.result() if f_n else []
+            wiki_n = f_w.result() if f_w else []
+            results = merge_unique(news, wiki_n, sx or [])
+            source = "searxng" if sx else "duckduckgo" if news else "wikinews" if wiki_n else "fallback"
         else:
-            results = pool.submit(sepiasearch_videos, query, page).result()
-            source = "sepiasearch"
+            videos = pool.submit(sepiasearch_videos, query, page).result() if "peertube" in want else []
+            results = merge_unique(videos, sx or [])
+            source = "searxng" if sx else "sepiasearch"
 
     return pack(query, tab, page, results, infobox, source)
 
@@ -378,6 +391,8 @@ def pack(query, tab, page, results, infobox, source):
         "wikinews": "Wikinews",
         "sepiasearch": "PeerTube",
         "fallback": "Results",
+        "none": "No sources selected",
+        "sepiasearch": "PeerTube",
     }
     return {
         "query": query,
@@ -422,7 +437,8 @@ class Handler(SimpleHTTPRequestHandler):
             q = (qs.get("q") or [""])[0]
             t = (qs.get("t") or ["web"])[0]
             p = (qs.get("p") or ["1"])[0]
-            return self.json(do_search(q, t, p))
+            engines = (qs.get("engines") or [None])[0]
+            return self.json(do_search(q, t, p, engines))
         self.path = parsed.path or "/"
         return super().do_GET()
 
@@ -443,7 +459,8 @@ class Handler(SimpleHTTPRequestHandler):
         q = str(body.get("q") or "")
         t = str(body.get("t") or "web")
         p = body.get("p") or 1
-        return self.json(do_search(q, t, p))
+        engines = body.get("engines")
+        return self.json(do_search(q, t, p, engines))
 
     def json(self, data, status=200):
         payload = json.dumps(data).encode()
