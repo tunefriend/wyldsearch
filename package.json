@@ -1,0 +1,13 @@
+{
+  "name": "wyldsearch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wyldsearch — private search homepage. No tracking, no profiles, no ads.",
+  "scripts": {
+    "start": "python3 server.py --host 0.0.0.0 --port 8787",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.111.0"
+  }
+}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" role="img" aria-label="Wyldsearch">
+  <title>Wyldsearch</title>
+  <!-- Moss badge. Interlocking WS: the S’s lower counter is a magnifying glass. -->
+  <rect width="80" height="80" rx="22" fill="#1c2a24"/>
+  <rect x="1" y="1" width="78" height="78" rx="21" fill="none" stroke="#2d443a" stroke-width="1"/>
+  <!-- W: both feet on the baseline; right leg shares space with the S -->
+  <path d="M8 58 L18 16 L27 54 L36 16 L44 50"
+        fill="none" stroke="#e8ece6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- S upper bowl, threading through the W’s right peak -->
+  <path d="M36 16 C51 9 67 17 63 31 C60 41 50 42 49 47"
+        fill="none" stroke="#e8ece6" stroke-width="6" stroke-linecap="round"/>
+  <!-- Magnifying glass = lower bowl of the S, interlocking the W’s right leg -->
+  <circle cx="47" cy="56.5" r="10.8" fill="none" stroke="#e8ece6" stroke-width="6"/>
+  <path d="M55 64.8 L66 75.5" fill="none" stroke="#c45c48" stroke-width="6" stroke-linecap="round"/>
+</svg>

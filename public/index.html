@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0a0c0b">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="index,follow">
+  <meta name="description" content="Wyldsearch — search the web privately. No tracking, no profiles, no ads.">
+  <title>Wyldsearch</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="search" type="application/opensearchdescription+xml" title="Wyldsearch" href="/opensearch.xml">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <a class="skip" href="#q-home">Skip to search</a>
+
+  <section id="home" class="home">
+    <div class="home-main">
+      <img class="logo-hero" src="/assets/logo.svg" width="88" height="88" alt="">
+      <h1 class="wordmark">Wyldsearch</h1>
+      <form class="search-form" action="/" method="get" role="search">
+        <label class="skip" for="q-home">Search</label>
+        <input id="q-home" type="search" name="q" placeholder="Search the web privately" maxlength="500" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" required>
+        <input type="hidden" name="t" value="web">
+        <button type="submit">Search</button>
+      </form>
+    </div>
+    <footer class="home-foot">
+      <p class="promise">No tracking. No profiles. No ads.</p>
+      <p><a href="/about.html">About</a></p>
+    </footer>
+  </section>
+
+  <section id="results" class="results hidden">
+    <header class="results-head">
+      <a class="brand" href="/" title="Wyldsearch home">
+        <img src="/assets/logo.svg" width="36" height="36" alt="">
+        <span class="brand-name">Wyldsearch</span>
+      </a>
+      <form class="search-form" action="/" method="get" role="search">
+        <label class="skip" for="q-results">Search</label>
+        <input id="q-results" type="search" name="q" placeholder="Search the web privately" maxlength="500" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" required>
+        <input type="hidden" name="t" id="tab-field" value="web">
+        <button type="submit">Search</button>
+      </form>
+    </header>
+
+    <nav class="tabs" aria-label="Result type">
+      <button class="tab" type="button" data-tab="web" aria-selected="true">Web</button>
+      <button class="tab" type="button" data-tab="images" aria-selected="false">Images</button>
+      <button class="tab" type="button" data-tab="news" aria-selected="false">News</button>
+      <button class="tab" type="button" data-tab="videos" aria-selected="false">Videos</button>
+    </nav>
+
+    <div class="results-body">
+      <div id="list" aria-live="polite"></div>
+      <aside id="card" hidden></aside>
+    </div>
+
+    <footer class="results-foot">
+      No tracking. No profiles. No ads. · <a href="/about.html">About</a>
+    </footer>
+  </section>
+
+  <noscript>
+    <p class="about-wrap">Wyldsearch needs JavaScript to show results. The search box still works as a GET form if you enable it.</p>
+  </noscript>
+  <script src="/js/app.js" defer></script>
+</body>
+</html>

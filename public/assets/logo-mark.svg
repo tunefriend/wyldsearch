@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" fill="none" aria-hidden="true">
+  <!-- Transparent-background monogram for the results header -->
+  <path d="M8 58 L18 16 L27 54 L36 16 L44 50"
+        stroke="#e8ece6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36 16 C51 9 67 17 63 31 C60 41 50 42 49 47"
+        stroke="#e8ece6" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="47" cy="56.5" r="10.8" stroke="#e8ece6" stroke-width="6"/>
+  <path d="M55 64.8 L66 75.5" stroke="#c45c48" stroke-width="6" stroke-linecap="round"/>
+</svg>

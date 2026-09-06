@@ -1,0 +1,24 @@
+name = "wyldsearch"
+main = "src/worker.js"
+compatibility_date = "2026-01-01"
+account_id = "51fbad0aea21d6aff90ae208616af60d"
+workers_dev = true
+
+[[routes]]
+pattern = "wyldsearch.org"
+custom_domain = true
+
+[[routes]]
+pattern = "www.wyldsearch.org"
+custom_domain = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+# Run the Worker on every request so privacy headers wrap HTML/CSS/JS too.
+run_worker_first = true
+
+# Point at your own SearxNG later:
+# [vars]
+# SEARXNG_URL = "https://search.example.com"

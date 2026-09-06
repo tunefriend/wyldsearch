@@ -1,0 +1,22 @@
+{
+  "name": "Wyldsearch",
+  "short_name": "Wyldsearch",
+  "description": "Search the web privately. No tracking, no profiles, no ads.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c0b",
+  "theme_color": "#0a0c0b",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
