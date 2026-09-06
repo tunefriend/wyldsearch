@@ -12,14 +12,15 @@
   const tabField = $("#tab-field");
 
   const TABS = ["web", "images", "news", "videos"];
-  const ALL_ENGINES = ["duckduckgo", "wikipedia", "commons", "wikinews", "peertube", "searxng"];
+  const DEFAULT_ENGINES = ["duckduckgo", "wikipedia", "commons", "wikinews", "peertube", "searxng"];
+  const ALL_ENGINES = DEFAULT_ENGINES.concat(["brave", "google", "bing", "startpage", "qwant", "yahoo"]);
   const STORE = "wyldsearch";
 
   const settingsDlg = $("#settings");
   const openSettings = $("#open-settings");
 
   function loadSettings() {
-    const fallback = { theme: "dark", engines: ALL_ENGINES.slice() };
+    const fallback = { theme: "dark", engines: DEFAULT_ENGINES.slice() };
     try {
       const raw = localStorage.getItem(STORE);
       if (!raw) return fallback;
@@ -82,10 +83,34 @@
     syncSettingsForm(settings);
     try {
       const h = await fetch("/api/health", { credentials: "omit", cache: "no-store" }).then((r) => r.json());
-      const hint = $("#searxng-hint");
-      if (hint) hint.textContent = h.searxng
-        ? "All tabs, using your connected instance"
-        : "All tabs — connect a SearxNG instance on the server to use this";
+      const setHint = (id, on, onText, offText) => {
+        const el = $(id);
+        if (el) el.textContent = on ? onText : offText;
+      };
+      setHint(
+        "#searxng-hint",
+        h.searxng,
+        "All tabs, using your connected instance",
+        "Connect a SearxNG instance on the server to use this"
+      );
+      setHint(
+        "#brave-hint",
+        h.brave || h.searxng,
+        h.brave ? "Official Brave Search API" : "Via your SearxNG instance",
+        "Needs a Brave API key or SearxNG — we do not scrape search pages"
+      );
+      setHint(
+        "#google-hint",
+        h.google || h.searxng,
+        h.google ? "Google Programmable Search API" : "Via your SearxNG instance",
+        "Needs SearxNG or a Google CSE key — we never scrape google.com"
+      );
+      setHint(
+        "#bing-hint",
+        h.bing || h.searxng,
+        h.bing ? "Bing Search API" : "Via your SearxNG instance",
+        "Needs SearxNG or a Bing API key — we never scrape bing.com"
+      );
     } catch {
       /* ignore */
     }
@@ -345,7 +370,7 @@
     }
     const rows = items.map((r) => `
       <article class="result">
-        <span class="result-url">${esc(displayUrl(r.url))}</span>
+        <span class="result-url">${esc(displayUrl(r.url))}${r.source ? " · " + esc(r.source) : ""}</span>
         <h3 class="result-title"><a href="${esc(r.url)}" rel="noopener noreferrer" referrerpolicy="no-referrer" target="_blank">${esc(r.title)}</a></h3>
         <p class="result-snippet">${esc(r.snippet || "")}</p>
       </article>`).join("");

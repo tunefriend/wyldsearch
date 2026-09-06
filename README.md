@@ -38,6 +38,8 @@ export SEARXNG_URL="https://search.your-vps.example"
 
 Enable JSON output on the instance (`search.formats: [html, json]`).
 
+Settings can then include Google, Bing, Brave, Startpage, Qwant, and Yahoo **through that instance**. This app does not scrape google.com or bing.com. Optional official keys (`BRAVE_API_KEY`, `BING_API_KEY`, `GOOGLE_API_KEY` + `GOOGLE_CSE_CX`) are documented in [DEPLOY.md](DEPLOY.md).
+
 ## Publish
 
 See [DEPLOY.md](DEPLOY.md). Custom domain `wyldsearch.org` attaches after
