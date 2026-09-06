@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Wyldsearch — Copyright (C) 2026 James — GPL-3.0-or-later
 """Wyldsearch local server — static files + privacy-preserving search proxy.
 
 Does not set cookies. Access logs omit the query string.

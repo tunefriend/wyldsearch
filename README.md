@@ -42,3 +42,8 @@ Enable JSON output on the instance (`search.formats: [html, json]`).
 
 See [DEPLOY.md](DEPLOY.md). Custom domain `wyldsearch.org` attaches after
 the Worker is live.
+
+## License
+
+Wyldsearch is free software under the [GNU General Public License
+v3.0 or later](LICENSE).

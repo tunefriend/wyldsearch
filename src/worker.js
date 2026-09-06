@@ -1,6 +1,9 @@
 /**
  * Cloudflare Worker — Wyldsearch static site + search proxy.
  * No cookies. No query logging. Optional SEARXNG_URL binding/var.
+ *
+ * Copyright (C) 2026 James
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 const UA_WIKI = "Wyldsearch/1.0 (https://wyldsearch.org; private search frontend)";

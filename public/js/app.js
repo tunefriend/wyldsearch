@@ -1,3 +1,4 @@
+/* Wyldsearch — Copyright (C) 2026 James — GPL-3.0-or-later */
 (() => {
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
