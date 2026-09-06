@@ -131,10 +131,10 @@ input {
 }
 
 .logo-hero {
-  width: 88px;
-  height: 88px;
+  width: min(220px, 62vw);
+  height: auto;
   display: block;
-  margin: 0 auto 1.05rem;
+  margin: 0 auto 1.15rem;
   filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.35));
 }
 
@@ -250,8 +250,8 @@ input {
 }
 
 .brand img {
-  width: 36px;
-  height: 36px;
+  width: 72px;
+  height: auto;
 }
 
 .brand-name {
@@ -633,8 +633,7 @@ input {
   }
 
   .logo-hero {
-    width: 76px;
-    height: 76px;
+    width: min(180px, 70vw);
   }
 
   .wiki-card img {

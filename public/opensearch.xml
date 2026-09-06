@@ -3,6 +3,6 @@
   <ShortName>Wyldsearch</ShortName>
   <Description>Search the web privately</Description>
   <InputEncoding>UTF-8</InputEncoding>
-  <Image width="16" height="16" type="image/svg+xml">/assets/favicon.svg</Image>
+  <Image width="16" height="16" type="image/png">https://wyldsearch.org/assets/favicon.png</Image>
   <Url type="text/html" method="get" template="https://wyldsearch.org/?q={searchTerms}"/>
 </OpenSearchDescription>
