@@ -64,6 +64,28 @@
         </div>
       </div>
 
+      <h3>GeauxWeather</h3>
+      <fieldset class="engine-list">
+        <legend class="skip">Weather widget</legend>
+        <label>
+          <input type="checkbox" name="weatherOn" id="weather-on">
+          <strong>Show under search</strong>
+          <small>Current conditions on the homepage</small>
+        </label>
+      </fieldset>
+      <div class="bg-fields" style="margin-top:0.65rem">
+        <label class="skip" for="wx-city">Place</label>
+        <input id="wx-city" type="text" placeholder="City or place" maxlength="80" autocomplete="off">
+        <div class="bg-actions">
+          <button type="button" id="wx-geo">Use my location</button>
+        </div>
+        <div class="theme-picks" role="radiogroup" aria-label="Temperature units">
+          <label><input type="radio" name="wx-units" value="imperial" checked> °F</label>
+          <label><input type="radio" name="wx-units" value="metric"> °C</label>
+        </div>
+        <p class="bg-hint" id="wx-status">Off until you pick a place. Location stays on this device.</p>
+      </div>
+
       <h3>Search sources</h3>
       <fieldset class="engine-list">
         <legend class="skip">Engines</legend>
@@ -142,6 +164,7 @@
         <input type="hidden" name="t" value="web">
         <button type="submit">Search</button>
       </form>
+      <div id="wx-home" class="wx-chip hidden" hidden></div>
     </div>
     <footer class="home-foot">
       <p class="promise">No tracking. No profiles. No ads.</p>
@@ -172,7 +195,10 @@
 
     <div class="results-body">
       <div id="list" aria-live="polite"></div>
-      <aside id="card" hidden></aside>
+      <aside id="card" hidden>
+        <div id="wx-panel" hidden></div>
+        <div id="wiki-panel"></div>
+      </aside>
     </div>
 
     <footer class="results-foot">
@@ -183,6 +209,7 @@
   <noscript>
     <p class="about-wrap">Wyldsearch needs JavaScript to show results. The search box still works as a GET form if you enable it.</p>
   </noscript>
+  <script src="/js/weather.js" defer></script>
   <script src="/js/app.js" defer></script>
 </body>
 </html>

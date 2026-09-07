@@ -7,6 +7,9 @@
   const results = $("#results");
   const listEl = $("#list");
   const cardEl = $("#card");
+  const wikiPanel = $("#wiki-panel");
+  const wxPanel = $("#wx-panel");
+  const wxHome = $("#wx-home");
   const qHome = $("#q-home");
   const qResults = $("#q-results");
   const tabField = $("#tab-field");
@@ -143,7 +146,15 @@
   }
 
   function loadSettings() {
-    const fallback = { theme: "dark", engines: DEFAULT_ENGINES.slice(), bgUrl: "", bgDim: 58 };
+    const fallback = {
+      theme: "dark",
+      engines: DEFAULT_ENGINES.slice(),
+      bgUrl: "",
+      bgDim: 58,
+      weatherOn: true,
+      weatherUnits: "imperial",
+      weatherPlace: null,
+    };
     try {
       const raw = localStorage.getItem(STORE);
       if (!raw) return fallback;
@@ -152,7 +163,17 @@
       let engines = Array.isArray(s.engines) ? s.engines.filter((e) => ALL_ENGINES.includes(e)) : DEFAULT_ENGINES.slice();
       const bgUrl = safeBgUrl(s.bgUrl);
       const bgDim = Math.min(85, Math.max(20, Number(s.bgDim) || 58));
-      return { theme, engines, bgUrl, bgDim };
+      const weatherOn = s.weatherOn !== false;
+      const weatherUnits = s.weatherUnits === "metric" ? "metric" : "imperial";
+      let weatherPlace = null;
+      if (s.weatherPlace && typeof s.weatherPlace === "object" && s.weatherPlace.lat != null) {
+        weatherPlace = {
+          lat: Number(s.weatherPlace.lat),
+          lon: Number(s.weatherPlace.lon),
+          label: String(s.weatherPlace.label || "Saved place"),
+        };
+      }
+      return { theme, engines, bgUrl, bgDim, weatherOn, weatherUnits, weatherPlace };
     } catch {
       return fallback;
     }
@@ -194,6 +215,13 @@
     if (urlEl) urlEl.value = s.bgUrl || "";
     if (dimEl) dimEl.value = String(s.bgDim || 58);
     if (dimLabel) dimLabel.textContent = `${s.bgDim || 58}%`;
+    const wxOn = $("#weather-on");
+    if (wxOn) wxOn.checked = s.weatherOn !== false;
+    const city = $("#wx-city");
+    if (city) city.value = (s.weatherPlace && s.weatherPlace.label) || "";
+    $$("input[name='wx-units']").forEach((el) => {
+      el.checked = el.value === (s.weatherUnits || "imperial");
+    });
   }
 
   function readSettingsForm() {
@@ -201,7 +229,10 @@
     const engines = $$("input[name='engine']:checked").map((el) => el.value);
     const bgUrl = safeBgUrl($("#bg-url")?.value || "");
     const bgDim = Math.min(85, Math.max(20, Number($("#bg-dim")?.value) || 58));
-    return { theme, engines, bgUrl, bgDim };
+    const weatherOn = !!$("#weather-on")?.checked;
+    const weatherUnits = $("input[name='wx-units']:checked")?.value === "metric" ? "metric" : "imperial";
+    const weatherPlace = settings.weatherPlace || null;
+    return { theme, engines, bgUrl, bgDim, weatherOn, weatherUnits, weatherPlace };
   }
 
   let settings = loadSettings();
@@ -251,11 +282,22 @@
     settingsDlg?.showModal();
   });
 
-  settingsDlg?.addEventListener("close", () => {
+  settingsDlg?.addEventListener("close", async () => {
     settings = readSettingsForm();
+    const typed = ($("#wx-city")?.value || "").trim();
+    const had = (settings.weatherPlace && settings.weatherPlace.label) || "";
+    if (typed && typed !== had && window.WyldWx) {
+      try {
+        const place = await window.WyldWx.geocode(typed);
+        if (place) settings.weatherPlace = place;
+      } catch {
+        /* keep previous place */
+      }
+    }
     saveSettings(settings);
     applyTheme(settings.theme);
     applyBackground();
+    refreshHomeWx();
     const st = params();
     if (st.q) runSearch(st, { push: false });
   });
@@ -283,6 +325,190 @@
     if (label) label.textContent = `${v}%`;
     document.documentElement.style.setProperty("--bg-dim", String(v / 100));
   });
+
+  async function lookupCity() {
+    const Wx = window.WyldWx;
+    const city = ($("#wx-city")?.value || "").trim();
+    const status = $("#wx-status");
+    if (!Wx || city.length < 2) return;
+    if (status) status.textContent = "Looking up place…";
+    try {
+      const place = await Wx.geocode(city);
+      if (!place) {
+        if (status) status.textContent = "Could not find that place.";
+        return;
+      }
+      settings.weatherPlace = place;
+      if ($("#wx-city")) $("#wx-city").value = place.label;
+      if (status) status.textContent = "Saved: " + place.label;
+      saveSettings(settings);
+      refreshHomeWx();
+    } catch {
+      if (status) status.textContent = "Place lookup failed.";
+    }
+  }
+
+  $("#wx-city")?.addEventListener("change", lookupCity);
+  $("#wx-city")?.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      lookupCity();
+    }
+  });
+
+  $("#wx-geo")?.addEventListener("click", async () => {
+    const Wx = window.WyldWx;
+    const status = $("#wx-status");
+    if (!Wx) return;
+    if (status) status.textContent = "Asking for location…";
+    try {
+      const pos = await Wx.gps();
+      const label = await Wx.reverseLabel(pos.lat, pos.lon);
+      settings.weatherPlace = { lat: pos.lat, lon: pos.lon, label };
+      settings.weatherOn = true;
+      const on = $("#weather-on");
+      if (on) on.checked = true;
+      if ($("#wx-city")) $("#wx-city").value = label;
+      if (status) status.textContent = "Saved: " + label;
+      saveSettings(settings);
+      refreshHomeWx();
+    } catch {
+      if (status) status.textContent = "Location was denied or unavailable.";
+    }
+  });
+
+  $("#weather-on")?.addEventListener("change", () => {
+    settings.weatherOn = !!$("#weather-on").checked;
+    saveSettings(settings);
+    refreshHomeWx();
+  });
+
+  $$("input[name='wx-units']").forEach((el) => {
+    el.addEventListener("change", () => {
+      settings.weatherUnits = el.value === "metric" ? "metric" : "imperial";
+      saveSettings(settings);
+      refreshHomeWx();
+    });
+  });
+
+  function deg(n) {
+    return n == null || Number.isNaN(Number(n)) ? "—" : Math.round(Number(n)) + "°";
+  }
+
+  function weekday(iso) {
+    try {
+      return new Date(iso + "T12:00:00").toLocaleDateString(undefined, { weekday: "short" });
+    } catch {
+      return "";
+    }
+  }
+
+  function syncAside() {
+    if (!cardEl) return;
+    const wxOn = wxPanel && !wxPanel.hidden && wxPanel.innerHTML;
+    const wikiOn = wikiPanel && wikiPanel.innerHTML.trim();
+    cardEl.hidden = !wxOn && !wikiOn;
+  }
+
+  async function refreshHomeWx() {
+    if (!wxHome) return;
+    if (!settings.weatherOn) {
+      wxHome.hidden = true;
+      wxHome.classList.add("hidden");
+      wxHome.innerHTML = "";
+      return;
+    }
+    wxHome.hidden = false;
+    wxHome.classList.remove("hidden");
+    const Wx = window.WyldWx;
+    const place = settings.weatherPlace;
+    if (!place) {
+      wxHome.innerHTML = `<button type="button" class="wx-cta" id="wx-home-setup">Add a place for GeauxWeather</button>`;
+      $("#wx-home-setup")?.addEventListener("click", () => {
+        settingsDlg?.showModal();
+        $("#wx-city")?.focus();
+      });
+      return;
+    }
+    try {
+      const wx = await Wx.loadPlace(place, settings.weatherUnits);
+      if (!wx) throw new Error("empty");
+      wxHome.innerHTML = `
+        <a href="${esc(wx.url)}" rel="noopener noreferrer" referrerpolicy="no-referrer">
+          <span class="wx-icon" aria-hidden="true">${esc(wx.icon)}</span>
+          <span class="wx-temp">${esc(deg(wx.temp))}</span>
+          <span class="wx-meta">
+            <span class="wx-cond">${esc(wx.cond)}</span>
+            <span class="wx-place">${esc(wx.place.label)}</span>
+          </span>
+          <span class="wx-hl">H ${esc(deg(wx.high))} · L ${esc(deg(wx.low))}</span>
+        </a>`;
+    } catch {
+      wxHome.innerHTML = `<p class="wx-cta">Weather didn’t load. Try again from Settings.</p>`;
+    }
+  }
+
+  function renderWxPanel(wx) {
+    if (!wxPanel) return;
+    if (!wx) {
+      wxPanel.hidden = true;
+      wxPanel.innerHTML = "";
+      syncAside();
+      return;
+    }
+    const days = (wx.days || [])
+      .map((d, i) => {
+        const cond = window.WyldWx.condition(d.code);
+        const label = i === 0 ? "Today" : weekday(d.date);
+        return `<div class="wx-day">${esc(label)}<br>${esc(cond.icon)}<strong>${esc(deg(d.max))}</strong>${esc(deg(d.min))}</div>`;
+      })
+      .join("");
+    wxPanel.innerHTML = `
+      <article class="wx-card">
+        <div class="wx-card-body">
+          <p class="wiki-kicker">GeauxWeather</p>
+          <h2>${esc(wx.place.label)}</h2>
+          <div class="wx-now">
+            <span class="wx-icon" aria-hidden="true">${esc(wx.icon)}</span>
+            <span class="wx-temp">${esc(deg(wx.temp))}</span>
+            <span class="wx-cond">${esc(wx.cond)}</span>
+          </div>
+          <p class="wiki-desc">H ${esc(deg(wx.high))} · L ${esc(deg(wx.low))}${wx.feels != null ? " · Feels " + esc(deg(wx.feels)) : ""}</p>
+          <div class="wx-days">${days}</div>
+          <a class="wiki-link" href="${esc(wx.url)}" rel="noopener noreferrer" referrerpolicy="no-referrer">Open GeauxWeather</a>
+        </div>
+      </article>`;
+    wxPanel.hidden = false;
+    syncAside();
+  }
+
+  async function maybeWeatherAnswer(q) {
+    const Wx = window.WyldWx;
+    if (!Wx) return;
+    const parsed = Wx.parseQuery(q);
+    if (!parsed) {
+      renderWxPanel(null);
+      return;
+    }
+    let place = settings.weatherPlace;
+    if (parsed.place) {
+      try {
+        place = await Wx.geocode(parsed.place);
+      } catch {
+        place = null;
+      }
+    }
+    if (!place) {
+      renderWxPanel(null);
+      return;
+    }
+    try {
+      const wx = await Wx.loadPlace(place, settings.weatherUnits);
+      renderWxPanel(wx);
+    } catch {
+      renderWxPanel(null);
+    }
+  }
 
   $("#bg-clear")?.addEventListener("click", async () => {
     settings.bgUrl = "";
@@ -496,8 +722,12 @@
     } else {
       listEl.innerHTML = `<p class="status">Searching privately…</p><div class="skeleton">${"<div class='result'></div>".repeat(6)}</div>`;
     }
-    cardEl.hidden = true;
-    cardEl.innerHTML = "";
+    if (wikiPanel) wikiPanel.innerHTML = "";
+    if (wxPanel) {
+      wxPanel.hidden = true;
+      wxPanel.innerHTML = "";
+    }
+    if (cardEl) cardEl.hidden = true;
   }
 
   function emptyMsg(data, kind) {
@@ -508,15 +738,16 @@
   }
 
   function renderCard(info) {
+    if (!wikiPanel) return;
     if (!info || !info.title || !info.extract) {
-      cardEl.hidden = true;
-      cardEl.innerHTML = "";
+      wikiPanel.innerHTML = "";
+      syncAside();
       return;
     }
     const img = info.thumbnail
       ? `<img src="${esc(info.thumbnail)}" alt="" width="${esc(info.thumbWidth || 320)}" height="${esc(info.thumbHeight || 180)}" referrerpolicy="no-referrer">`
       : "";
-    cardEl.innerHTML = `
+    wikiPanel.innerHTML = `
       <article class="wiki-card">
         ${img}
         <div class="wiki-card-body">
@@ -527,7 +758,7 @@
           ${info.url ? `<a class="wiki-link" href="${esc(info.url)}" rel="noopener noreferrer" referrerpolicy="no-referrer" target="_blank">Read on Wikipedia</a>` : ""}
         </div>
       </article>`;
-    cardEl.hidden = false;
+    syncAside();
   }
 
   function renderWeb(data) {
@@ -603,6 +834,7 @@
       showHome();
       setUrl({ q: "", t: "web", p: 1 }, true);
       qHome?.focus();
+      refreshHomeWx();
       return;
     }
 
@@ -623,14 +855,18 @@
       else if (t === "news") renderNews(data);
       else if (t === "videos") renderVideos(data);
       else renderWeb(data);
-      if (t === "web") renderCard(data.infobox);
-      else {
-        cardEl.hidden = true;
-        cardEl.innerHTML = "";
+      if (t === "web") {
+        renderCard(data.infobox);
+        maybeWeatherAnswer(q);
+      } else {
+        if (wikiPanel) wikiPanel.innerHTML = "";
+        renderWxPanel(null);
+        if (cardEl) cardEl.hidden = true;
       }
     } catch (err) {
       listEl.innerHTML = `<p class="status error">${esc(err.message || "Search didn’t come back.")} Try again.</p>`;
-      cardEl.hidden = true;
+      if (wikiPanel) wikiPanel.innerHTML = "";
+      renderWxPanel(null);
     }
   }
 
@@ -671,5 +907,6 @@
   else {
     showHome();
     qHome?.focus();
+    refreshHomeWx();
   }
 })();

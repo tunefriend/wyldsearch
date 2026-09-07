@@ -435,6 +435,131 @@ input {
 
 /* ---------- Knowledge card ---------- */
 
+.wx-chip {
+  width: min(560px, 100%);
+  margin-top: 1.05rem;
+}
+
+.wx-chip a,
+.wx-chip .wx-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: inherit;
+  text-decoration: none;
+}
+
+.wx-chip a:hover {
+  border-color: #4a6358;
+}
+
+.wx-chip .wx-icon {
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.wx-chip .wx-temp {
+  font-size: 1.55rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.wx-chip .wx-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.wx-chip .wx-cond {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.wx-chip .wx-place {
+  color: var(--steel);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wx-chip .wx-hl {
+  color: var(--steel);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wx-chip .wx-cta {
+  cursor: pointer;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--steel);
+}
+
+.wx-chip .wx-cta:hover {
+  color: var(--bone);
+}
+
+.wx-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+}
+
+.wx-card-body {
+  padding: 0.95rem 1rem 1.1rem;
+}
+
+.wx-now {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.wx-now .wx-temp {
+  font-size: 2.2rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.wx-days {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.35rem;
+  margin: 0.85rem 0 0.9rem;
+}
+
+.wx-day {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--steel);
+}
+
+.wx-day strong {
+  display: block;
+  color: var(--bone);
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+}
+
+#wx-panel + #wiki-panel .wiki-card {
+  margin-top: 0;
+}
+
 .wiki-card {
   background: var(--panel);
   border: 1px solid var(--line);
