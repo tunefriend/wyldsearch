@@ -42,25 +42,4 @@ Or locally:
 SEARXNG_URL=https://search.your-vps.example ./start.sh
 ```
 
-The instance must allow `format=json`.
-
-Google, Bing, Startpage, Qwant, and Yahoo in Settings query **that instance** (`engines=google` and so on). Wyldsearch does not scrape those sites from Cloudflare.
-
-## Optional official APIs
-
-Do not put keys in git. Locally use environment variables; on Cloudflare use secrets:
-
-```bash
-npx wrangler secret put BRAVE_API_KEY
-npx wrangler secret put BING_API_KEY
-npx wrangler secret put GOOGLE_API_KEY
-npx wrangler secret put GOOGLE_CSE_CX
-```
-
-| Secret | What it unlocks |
-|---|---|
-| `BRAVE_API_KEY` | Brave Search API (web, images, news, videos) |
-| `BING_API_KEY` | Bing Web Search API v7, if you still have an Azure key |
-| `GOOGLE_API_KEY` + `GOOGLE_CSE_CX` | Google Programmable Search (web + images). Google is retiring this JSON API on 1 Jan 2027. |
-
-Without those keys, checking Google/Bing/Brave still works **if** SearxNG is connected.
+The instance must allow `format=json`. Then enable **SearxNG** in Wyldsearch Settings. Google/Bing and other engines belong in that instance’s config, not in this front end.

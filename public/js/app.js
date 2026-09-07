@@ -16,7 +16,7 @@
 
   const TABS = ["web", "images", "news", "videos"];
   const DEFAULT_ENGINES = ["duckduckgo", "wikipedia", "commons", "wikinews", "peertube", "searxng"];
-  const ALL_ENGINES = DEFAULT_ENGINES.concat(["brave", "google", "bing", "startpage", "qwant", "yahoo"]);
+  const ALL_ENGINES = DEFAULT_ENGINES.slice();
   const STORE = "wyldsearch";
 
   const settingsDlg = $("#settings");
@@ -257,24 +257,6 @@
         h.searxng,
         "All tabs, using your connected instance",
         "Connect a SearxNG instance on the server to use this"
-      );
-      setHint(
-        "#brave-hint",
-        h.brave || h.searxng,
-        h.brave ? "Official Brave Search API" : "Via your SearxNG instance",
-        "Needs a Brave API key or SearxNG — we do not scrape search pages"
-      );
-      setHint(
-        "#google-hint",
-        h.google || h.searxng,
-        h.google ? "Google Programmable Search API" : "Via your SearxNG instance",
-        "Needs SearxNG or a Google CSE key — we never scrape google.com"
-      );
-      setHint(
-        "#bing-hint",
-        h.bing || h.searxng,
-        h.bing ? "Bing Search API" : "Via your SearxNG instance",
-        "Needs SearxNG or a Bing API key — we never scrape bing.com"
       );
     } catch {
       /* ignore */

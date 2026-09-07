@@ -280,119 +280,6 @@ async function searxngSearch(env, query, tab, page, engineNames) {
     .filter((r) => r.url && r.title);
 }
 
-async function braveSearch(env, query, tab, page) {
-  const key = env.BRAVE_API_KEY;
-  if (!key) return [];
-  const path = { web: "web", images: "images", news: "news", videos: "videos" }[tab] || "web";
-  const offset = (page - 1) * 20;
-  const url =
-    `https://api.search.brave.com/res/v1/${path}/search?` +
-    new URLSearchParams({ q: query, count: "20", offset: String(offset) }).toString();
-  const { ok, text } = await fetchText(url, {
-    extraHeaders: { "X-Subscription-Token": key, Accept: "application/json" },
-  });
-  if (!ok || !text) return [];
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return [];
-  }
-  const rows = tab === "web" ? data.web?.results || data.results || [] : data.results || [];
-  return rows
-    .map((item) => {
-      const url = stripTracking(item.url || item.properties?.url || "");
-      const title = cleanText(item.title || "");
-      const thumb = item.thumbnail?.src || item.thumbnail || "";
-      return {
-        title,
-        url,
-        snippet: cleanText(item.description || ""),
-        thumbnail: typeof thumb === "string" ? thumb : "",
-        source: item.meta_url?.hostname || "Brave",
-        published: item.age || item.page_age || "",
-        duration: 0,
-      };
-    })
-    .filter((r) => r.url && r.title);
-}
-
-async function bingSearch(env, query, tab, page) {
-  const key = env.BING_API_KEY;
-  if (!key) return [];
-  const endpoints = {
-    web: "https://api.bing.microsoft.com/v7.0/search",
-    images: "https://api.bing.microsoft.com/v7.0/images/search",
-    news: "https://api.bing.microsoft.com/v7.0/news/search",
-    videos: "https://api.bing.microsoft.com/v7.0/videos/search",
-  };
-  const offset = (page - 1) * 10;
-  const url =
-    `${endpoints[tab] || endpoints.web}?` +
-    new URLSearchParams({ q: query, count: "10", offset: String(offset) }).toString();
-  const { ok, text } = await fetchText(url, {
-    extraHeaders: { "Ocp-Apim-Subscription-Key": key, Accept: "application/json" },
-  });
-  if (!ok || !text) return [];
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return [];
-  }
-  const rows = tab === "web" ? data.webPages?.value || [] : data.value || [];
-  return rows
-    .map((item) => ({
-      title: cleanText(item.name || ""),
-      url: stripTracking(item.hostPageUrl || item.contentUrl || item.url || ""),
-      snippet: cleanText(item.snippet || item.description || ""),
-      thumbnail: item.thumbnailUrl || item.thumbnail?.thumbnailUrl || "",
-      source: "Bing",
-      published: item.datePublished || "",
-      duration: 0,
-    }))
-    .filter((r) => r.url && r.title);
-}
-
-async function googleCse(env, query, tab, page) {
-  const key = env.GOOGLE_API_KEY;
-  const cx = env.GOOGLE_CSE_CX;
-  if (!key || !cx || (tab !== "web" && tab !== "images")) return [];
-  const params = {
-    key,
-    cx,
-    q: query,
-    start: String((page - 1) * 10 + 1),
-    num: "10",
-  };
-  if (tab === "images") params.searchType = "image";
-  const { ok, text } = await fetchText(
-    "https://www.googleapis.com/customsearch/v1?" + new URLSearchParams(params).toString()
-  );
-  if (!ok || !text) return [];
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    return [];
-  }
-  return (data.items || [])
-    .map((item) => ({
-      title: cleanText(item.title || ""),
-      url: stripTracking(item.link || ""),
-      snippet: cleanText(item.snippet || ""),
-      thumbnail:
-        item.image?.thumbnailLink ||
-        item.pagemap?.cse_image?.[0]?.src ||
-        (tab === "images" ? item.link : "") ||
-        "",
-      source: "Google",
-      published: "",
-      duration: 0,
-    }))
-    .filter((r) => r.url && r.title);
-}
-
 function mergeUnique(...lists) {
   const seen = new Set();
   const out = [];
@@ -419,8 +306,7 @@ const LABELS = {
 };
 
 const DEFAULT_ENGINES = ["duckduckgo", "wikipedia", "commons", "wikinews", "peertube", "searxng"];
-const ALL_ENGINES = DEFAULT_ENGINES.concat(["brave", "google", "bing", "startpage", "qwant", "yahoo"]);
-const SEARX_ONLY = ["startpage", "qwant", "yahoo"];
+const ALL_ENGINES = DEFAULT_ENGINES.slice();
 
 function parseEngines(raw) {
   if (raw == null) return new Set(DEFAULT_ENGINES);
@@ -437,69 +323,45 @@ async function doSearch(env, query, tab, page, engines) {
 
   if (want.size === 0) return pack(query, tab, page, [], null, "none");
 
-  let sxNames = [];
-  let sxAll = false;
-  if (want.has("searxng")) sxAll = true;
-  else {
-    if (want.has("google") && !(env.GOOGLE_API_KEY && env.GOOGLE_CSE_CX)) sxNames.push("google");
-    if (want.has("bing") && !env.BING_API_KEY) sxNames.push("bing");
-    if (want.has("brave") && !env.BRAVE_API_KEY) sxNames.push("brave");
-    for (const name of SEARX_ONLY) if (want.has(name)) sxNames.push(name);
-  }
-
-  const sxPromise = env.SEARXNG_URL && (sxAll || sxNames.length)
-    ? searxngSearch(env, query, tab, page, sxAll ? null : sxNames)
+  const sxPromise = want.has("searxng") && env.SEARXNG_URL
+    ? searxngSearch(env, query, tab, page)
     : null;
-  const bravePromise = want.has("brave") && env.BRAVE_API_KEY ? braveSearch(env, query, tab, page) : [];
-  const bingPromise = want.has("bing") && env.BING_API_KEY ? bingSearch(env, query, tab, page) : [];
-  const googlePromise =
-    want.has("google") && env.GOOGLE_API_KEY && env.GOOGLE_CSE_CX ? googleCse(env, query, tab, page) : [];
 
   let results = [];
   let infobox = null;
   let source = "fallback";
 
   if (tab === "web") {
-    const [web, box, wiki, sx, brave, bing, google] = await Promise.all([
+    const [web, box, wiki, sx] = await Promise.all([
       want.has("duckduckgo") ? ddgWeb(query, page, false) : [],
       want.has("wikipedia") ? wikipediaInfobox(query) : null,
       want.has("wikipedia") ? wikipediaWeb(query, page) : [],
       sxPromise,
-      bravePromise,
-      bingPromise,
-      googlePromise,
     ]);
     infobox = box;
-    results = mergeUnique(web, wiki, sx, brave, bing, google);
+    results = mergeUnique(web, wiki, sx);
     source = web.length ? "duckduckgo" : wiki.length ? "wikipedia" : "fallback";
   } else if (tab === "images") {
-    const [commons, sx, brave, bing, google] = await Promise.all([
+    const [commons, sx] = await Promise.all([
       want.has("commons") ? commonsImages(query, page) : [],
       sxPromise,
-      bravePromise,
-      bingPromise,
-      googlePromise,
     ]);
-    results = mergeUnique(commons, sx, brave, bing, google);
+    results = mergeUnique(commons, sx);
     source = "commons";
   } else if (tab === "news") {
-    const [news, wikiN, sx, brave, bing] = await Promise.all([
+    const [news, wikiN, sx] = await Promise.all([
       want.has("duckduckgo") ? ddgWeb(query, page, true) : [],
       want.has("wikinews") ? wikinews(query, page) : [],
       sxPromise,
-      bravePromise,
-      bingPromise,
     ]);
-    results = mergeUnique(news, wikiN, sx, brave, bing);
+    results = mergeUnique(news, wikiN, sx);
     source = news.length ? "duckduckgo" : wikiN.length ? "wikinews" : "fallback";
   } else {
-    const [videos, sx, brave, bing] = await Promise.all([
+    const [videos, sx] = await Promise.all([
       want.has("peertube") ? sepiasearchVideos(query, page) : [],
       sxPromise,
-      bravePromise,
-      bingPromise,
     ]);
-    results = mergeUnique(videos, sx, brave, bing);
+    results = mergeUnique(videos, sx);
     source = "sepiasearch";
   }
 
@@ -538,9 +400,6 @@ export default {
       return json({
         ok: true,
         searxng: Boolean(env.SEARXNG_URL),
-        brave: Boolean(env.BRAVE_API_KEY),
-        bing: Boolean(env.BING_API_KEY),
-        google: Boolean(env.GOOGLE_API_KEY && env.GOOGLE_CSE_CX),
       });
     }
 

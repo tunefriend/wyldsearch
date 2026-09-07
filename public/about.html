@@ -39,8 +39,7 @@
     <h2>How search works</h2>
     <p>The page you are looking at is the front end. Queries go to a same-origin API that does not set cookies and does not store the query. It fans out to privacy-respecting sources and returns a combined page.</p>
     <p>Web results currently come from DuckDuckGo’s HTML version (via the proxy) or, when you attach one, your own SearxNG instance. The side card is a Wikipedia summary. Images come from Wikimedia Commons. News from Wikinews and web results. Videos from SepiaSearch (PeerTube).</p>
-    <p>When you run SearxNG on a VPS, set <code>SEARXNG_URL</code> on the server. You can turn that instance on or off in Settings along with DuckDuckGo, Wikipedia, Commons, Wikinews, PeerTube, Brave, Google, Bing, Startpage, Qwant, and Yahoo.</p>
-    <p>Wyldsearch does not scrape google.com or bing.com. Google and Bing results only come from your own SearxNG instance or from their official APIs (keys you add on the server). Brave uses Brave’s official Search API when a key is present.</p>
+    <p>When you run SearxNG on a VPS, set <code>SEARXNG_URL</code> on the server. You can turn that instance on or off in Settings along with DuckDuckGo, Wikipedia, Commons, Wikinews, and PeerTube. Engines such as Google or Bing then come from <em>your</em> SearxNG config, not from scraping those sites here.</p>
     <p>Appearance (dark / light / system), a background picture, GeauxWeather place, and which sources to query are stored in this browser only, never as cookies and never on the server. A background uploaded from a file stays on the device. A background URL is loaded by your browser from that host.</p>
     <p>The homepage can show a GeauxWeather chip (opt-in place). Searches like “weather Baton Rouge” also get a GeauxWeather card. Forecasts come from Open-Meteo; the chip links to <a href="https://geauxweather.com">geauxweather.com</a>.</p>
 

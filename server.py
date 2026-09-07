@@ -25,10 +25,6 @@ PUBLIC = ROOT / "public"
 UA_WIKI = "Wyldsearch/1.0 (https://wyldsearch.org; private search frontend)"
 UA_WEB = "Mozilla/5.0 (compatible; Wyldsearch/1.0; +https://wyldsearch.org)"
 SEARXNG = os.environ.get("SEARXNG_URL", "").rstrip("/")
-BRAVE_KEY = os.environ.get("BRAVE_API_KEY", "")
-BING_KEY = os.environ.get("BING_API_KEY", "")
-GOOGLE_KEY = os.environ.get("GOOGLE_API_KEY", "")
-GOOGLE_CX = os.environ.get("GOOGLE_CSE_CX", "")
 TIMEOUT = 12
 TRACKING_KEYS = {
     "utm_source",
@@ -331,146 +327,6 @@ def searxng_search(
     return out
 
 
-def brave_search(query: str, tab: str, page: int) -> list[dict]:
-    if not BRAVE_KEY:
-        return []
-    path = {"web": "web", "images": "images", "news": "news", "videos": "videos"}.get(tab, "web")
-    offset = (page - 1) * 20
-    q = urllib.parse.urlencode({"q": query, "count": "20", "offset": str(offset)})
-    code, body = http_get(
-        f"https://api.search.brave.com/res/v1/{path}/search?{q}",
-        extra_headers={"X-Subscription-Token": BRAVE_KEY, "Accept": "application/json"},
-    )
-    if code != 200 or not body:
-        return []
-    try:
-        data = json.loads(body.decode("utf-8", "replace"))
-    except json.JSONDecodeError:
-        return []
-    rows = []
-    if tab == "web":
-        rows = ((data.get("web") or {}).get("results")) or data.get("results") or []
-    else:
-        rows = data.get("results") or []
-    out = []
-    for item in rows:
-        url = strip_tracking(item.get("url") or (item.get("properties") or {}).get("url") or "")
-        title = clean_text(item.get("title") or "")
-        if not url or not title:
-            continue
-        thumb = ""
-        th = item.get("thumbnail")
-        if isinstance(th, dict):
-            thumb = th.get("src") or ""
-        elif isinstance(th, str):
-            thumb = th
-        src = item.get("meta_url") or {}
-        source_name = src.get("hostname") if isinstance(src, dict) else ""
-        out.append(
-            {
-                "title": title,
-                "url": url,
-                "snippet": clean_text(item.get("description") or ""),
-                "thumbnail": thumb,
-                "source": source_name or "Brave",
-                "published": item.get("age") or item.get("page_age") or "",
-                "duration": 0,
-            }
-        )
-    return out
-
-
-def bing_search(query: str, tab: str, page: int) -> list[dict]:
-    if not BING_KEY:
-        return []
-    offset = (page - 1) * 10
-    endpoints = {
-        "web": "https://api.bing.microsoft.com/v7.0/search",
-        "images": "https://api.bing.microsoft.com/v7.0/images/search",
-        "news": "https://api.bing.microsoft.com/v7.0/news/search",
-        "videos": "https://api.bing.microsoft.com/v7.0/videos/search",
-    }
-    q = urllib.parse.urlencode({"q": query, "count": "10", "offset": str(offset)})
-    code, body = http_get(
-        f"{endpoints.get(tab, endpoints['web'])}?{q}",
-        extra_headers={"Ocp-Apim-Subscription-Key": BING_KEY, "Accept": "application/json"},
-    )
-    if code != 200 or not body:
-        return []
-    try:
-        data = json.loads(body.decode("utf-8", "replace"))
-    except json.JSONDecodeError:
-        return []
-    if tab == "web":
-        rows = ((data.get("webPages") or {}).get("value")) or []
-        key_title, key_url, key_snip = "name", "url", "snippet"
-    else:
-        rows = data.get("value") or []
-        key_title, key_url, key_snip = "name", "url", "description"
-        if tab == "images":
-            key_url = "hostPageUrl"
-    out = []
-    for item in rows:
-        url = strip_tracking(item.get(key_url) or item.get("contentUrl") or item.get("url") or "")
-        title = clean_text(item.get(key_title) or "")
-        if not url or not title:
-            continue
-        thumb = ((item.get("thumbnail") or {}).get("thumbnailUrl")) if isinstance(item.get("thumbnail"), dict) else ""
-        thumb = thumb or item.get("thumbnailUrl") or ""
-        out.append(
-            {
-                "title": title,
-                "url": url,
-                "snippet": clean_text(item.get(key_snip) or item.get("snippet") or ""),
-                "thumbnail": thumb,
-                "source": "Bing",
-                "published": item.get("datePublished") or "",
-                "duration": 0,
-            }
-        )
-    return out
-
-
-def google_cse(query: str, tab: str, page: int) -> list[dict]:
-    if not GOOGLE_KEY or not GOOGLE_CX or tab not in {"web", "images"}:
-        return []
-    start = (page - 1) * 10 + 1
-    params = {"key": GOOGLE_KEY, "cx": GOOGLE_CX, "q": query, "start": str(start), "num": "10"}
-    if tab == "images":
-        params["searchType"] = "image"
-    code, body = http_get("https://www.googleapis.com/customsearch/v1?" + urllib.parse.urlencode(params))
-    if code != 200 or not body:
-        return []
-    try:
-        data = json.loads(body.decode("utf-8", "replace"))
-    except json.JSONDecodeError:
-        return []
-    out = []
-    for item in data.get("items") or []:
-        url = strip_tracking(item.get("link") or "")
-        title = clean_text(item.get("title") or "")
-        if not url or not title:
-            continue
-        thumb = ""
-        pagemap = item.get("pagemap") or {}
-        cse_img = (pagemap.get("cse_image") or [{}])[0]
-        if isinstance(cse_img, dict):
-            thumb = cse_img.get("src") or ""
-        if tab == "images":
-            thumb = (item.get("image") or {}).get("thumbnailLink") or item.get("link") or thumb
-        out.append(
-            {
-                "title": title,
-                "url": url,
-                "snippet": clean_text(item.get("snippet") or ""),
-                "thumbnail": thumb,
-                "source": "Google",
-                "published": "",
-                "duration": 0,
-            }
-        )
-    return out
-
 
 def merge_unique(*lists: list[dict]) -> list[dict]:
     seen = set()
@@ -486,8 +342,7 @@ def merge_unique(*lists: list[dict]) -> list[dict]:
 
 
 DEFAULT_ENGINES = ("duckduckgo", "wikipedia", "commons", "wikinews", "peertube", "searxng")
-ALL_ENGINES = DEFAULT_ENGINES + ("brave", "google", "bing", "startpage", "qwant", "yahoo")
-SEARX_ONLY = ("startpage", "qwant", "yahoo")
+ALL_ENGINES = DEFAULT_ENGINES
 
 
 def parse_engines(raw) -> set[str]:
@@ -511,27 +366,10 @@ def do_search(query: str, tab: str, page: int, engines=None) -> dict:
     if not want:
         return pack(query, tab, page, [], None, "none")
 
-    sx_names = []
-    if "searxng" in want:
-        sx_names = None  # full category search on the instance
-    else:
-        if "google" in want and not (GOOGLE_KEY and GOOGLE_CX):
-            sx_names.append("google")
-        if "bing" in want and not BING_KEY:
-            sx_names.append("bing")
-        if "brave" in want and not BRAVE_KEY:
-            sx_names.append("brave")
-        for name in SEARX_ONLY:
-            if name in want:
-                sx_names.append(name)
-
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        f_sx = pool.submit(searxng_search, query, tab, page, sx_names) if (
-            SEARXNG and (sx_names is None or sx_names)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        f_sx = pool.submit(searxng_search, query, tab, page) if (
+            SEARXNG and "searxng" in want
         ) else None
-        f_brave = pool.submit(brave_search, query, tab, page) if "brave" in want and BRAVE_KEY else None
-        f_bing = pool.submit(bing_search, query, tab, page) if "bing" in want and BING_KEY else None
-        f_google = pool.submit(google_cse, query, tab, page) if "google" in want and GOOGLE_KEY and GOOGLE_CX else None
 
         if tab == "web":
             f_web = pool.submit(ddg_web, query, page, False) if "duckduckgo" in want else None
@@ -540,34 +378,26 @@ def do_search(query: str, tab: str, page: int, engines=None) -> dict:
             web = f_web.result() if f_web else []
             infobox = f_box.result() if f_box else None
             wiki = f_wiki.result() if f_wiki else []
-            extra = []
-            for fut in (f_sx, f_brave, f_bing, f_google):
-                extra.append((fut.result() if fut else None) or [])
-            results = merge_unique(web, wiki, *extra)
-            source = "duckduckgo" if web else "wikipedia" if wiki else "brave" if f_brave else "fallback"
+            sx = (f_sx.result() if f_sx else None) or []
+            results = merge_unique(web, wiki, sx)
+            source = "duckduckgo" if web else "wikipedia" if wiki else "fallback"
         elif tab == "images":
             commons = pool.submit(commons_images, query, page).result() if "commons" in want else []
-            extra = []
-            for fut in (f_sx, f_brave, f_bing, f_google):
-                extra.append((fut.result() if fut else None) or [])
-            results = merge_unique(commons, *extra)
+            sx = (f_sx.result() if f_sx else None) or []
+            results = merge_unique(commons, sx)
             source = "commons"
         elif tab == "news":
             f_n = pool.submit(ddg_web, query, page, True) if "duckduckgo" in want else None
             f_w = pool.submit(wikinews, query, page) if "wikinews" in want else None
             news = f_n.result() if f_n else []
             wiki_n = f_w.result() if f_w else []
-            extra = []
-            for fut in (f_sx, f_brave, f_bing):
-                extra.append((fut.result() if fut else None) or [])
-            results = merge_unique(news, wiki_n, *extra)
+            sx = (f_sx.result() if f_sx else None) or []
+            results = merge_unique(news, wiki_n, sx)
             source = "duckduckgo" if news else "wikinews" if wiki_n else "fallback"
         else:
             videos = pool.submit(sepiasearch_videos, query, page).result() if "peertube" in want else []
-            extra = []
-            for fut in (f_sx, f_brave, f_bing):
-                extra.append((fut.result() if fut else None) or [])
-            results = merge_unique(videos, *extra)
+            sx = (f_sx.result() if f_sx else None) or []
+            results = merge_unique(videos, sx)
             source = "sepiasearch"
 
     return pack(query, tab, page, results, infobox, source)
@@ -622,15 +452,7 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/health":
-            return self.json(
-                {
-                    "ok": True,
-                    "searxng": bool(SEARXNG),
-                    "brave": bool(BRAVE_KEY),
-                    "bing": bool(BING_KEY),
-                    "google": bool(GOOGLE_KEY and GOOGLE_CX),
-                }
-            )
+            return self.json({"ok": True, "searxng": bool(SEARXNG)})
         if parsed.path == "/api/search":
             qs = urllib.parse.parse_qs(parsed.query)
             q = (qs.get("q") or [""])[0]
